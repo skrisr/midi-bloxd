@@ -209,6 +209,10 @@
           <label>出力する最大ノート数</label>
           <input type="number" id="maxNotes" value="4000" min="1" max="50000">
         </div>
+        <div class="field">
+          <label>1ブロックあたりの最大文字数</label>
+          <input type="number" id="maxChars" value="30000" min="200" max="100000">
+        </div>
         <div class="field check">
           <input type="checkbox" id="excludeDrums" checked>
           <label for="excludeDrums">ドラムトラック(MIDIチャンネル10)を除外する</label>
@@ -225,15 +229,26 @@
   </div>
 
   <div class="step">
-    <div class="step-head"><div class="step-num">03</div><h2>スタート用ブロックに貼る</h2></div>
+    <div class="step-head"><div class="step-num">03</div><h2>曲データを読み込みブロックに分けて貼る</h2></div>
     <div class="step-body">
-      <p class="desc">曲データと開始処理が入っています。Bloxdのワールドで新しいCode Blockを置き、下のコードをそのまま貼り付けてください。プレイヤーがそのブロックをクリックすると曲が最初から再生されます。曲ごとに別のブロックを用意すれば複数曲を切り替えられます。</p>
-      <textarea id="startCode" rows="10" spellcheck="false" placeholder="MIDIをアップロードするとここに生成されます"></textarea>
+      <p class="desc">1つのCode Blockに貼れる文字数には上限があるため（実測ではおよそ32,000文字あたりが目安）、曲データは自動的に複数ブロックに分割されます。Bloxdのワールドでパートの数だけCode Blockを並べて置き、パート1から順番に1回ずつクリックして曲データを読み込ませてください（あとから曲を変える場合もパート1から貼り直せばOKです）。</p>
+      <div id="blocksContainer"></div>
       <div class="row">
-        <button id="copyStartBtn" onclick="copyText('startCode')" disabled>コピー</button>
-        <button id="dlStartBtn" class="ghost" onclick="downloadText('startCode','bloxd_start_block.js')" disabled>ダウンロード</button>
+        <button class="ghost" id="dlAllBtn" onclick="downloadAllParts()" disabled>全パートをまとめて1ファイルでダウンロード</button>
       </div>
       <p class="note-inline">rateは0.5〜4の範囲しか指定できないため、基準ノートからおよそ2オクターブ以上離れた音は自動的に上下オクターブをずらして近似しています。</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="step-num">04</div><h2>スタート用ブロックに貼る（最初に一度だけ）</h2></div>
+    <div class="step-body">
+      <p class="desc">読み込み済みの曲データを最初から再生する処理です。別のCode Blockを1つ置いて貼ってください。曲を変えても、このブロック自体は書き換える必要はありません。</p>
+      <textarea id="startTriggerCode" rows="4" spellcheck="false"></textarea>
+      <div class="row">
+        <button onclick="copyText('startTriggerCode')">コピー</button>
+        <button class="ghost" onclick="downloadText('startTriggerCode','bloxd_start_trigger.js')">ダウンロード</button>
+      </div>
     </div>
   </div>
 
@@ -271,6 +286,11 @@ tick = () => {
 };`;
 
 document.getElementById('wcCode').value = WORLD_CODE;
+
+const START_TRIGGER_CODE = `songTick = 0;
+songIndex = 0;
+playing = true;`;
+document.getElementById('startTriggerCode').value = START_TRIGGER_CODE;
 
 const NOTE_SOUNDS = ["bass","bassattack","bd","harp_pling","hat","levelup","lowDrum1","lowDrum2","lowDrum3","snare","sonarBeep","trumpetFlare","trumpetNote1","trumpetNote2","trumpetNote3"];
 const soundSel = document.getElementById('baseSound');
@@ -449,27 +469,85 @@ function autoBaseNote(){
   renderOutput();
 }
 
+function buildChunks(notes, baseSound, baseNote, maxChars){
+  const itemStrs = notes.map(n=>`{tick:${n.tick},note:${n.note},vol:${n.vol}}`);
+  const chunks = [];
+  let i = 0, first = true;
+  while (i < itemStrs.length){
+    const prefix = first ? `BASE_SOUND = "${baseSound}";\nBASE_NOTE = ${baseNote};\nsong = [` : `song = song.concat([`;
+    const suffix = first ? `];` : `]);`;
+    let body = '', count = 0;
+    while (i < itemStrs.length){
+      const piece = (count === 0 ? '' : ',') + itemStrs[i];
+      if (count > 0 && prefix.length + body.length + piece.length + suffix.length > maxChars) break;
+      body += piece; i++; count++;
+    }
+    chunks.push({code: prefix + body + suffix, count});
+    first = false;
+  }
+  return chunks;
+}
+
+let lastChunks = [];
+
 function renderOutput(){
   if (!lastResult) return;
   const maxNotes = parseInt(document.getElementById('maxNotes').value) || 4000;
+  const maxChars = parseInt(document.getElementById('maxChars').value) || 1500;
   const baseSound = document.getElementById('baseSound').value;
   const baseNote = parseInt(document.getElementById('baseNote').value) || 60;
   const tps = parseFloat(document.getElementById('tps').value) || 20;
 
   let notes = lastResult.notes.slice(0, maxNotes);
+  const chunks = buildChunks(notes, baseSound, baseNote, maxChars);
+  lastChunks = chunks;
 
-  const body = notes.map(n=>`{tick:${n.tick},note:${n.note},vol:${n.vol}}`).join(',');
-  const code = `BASE_SOUND = "${baseSound}";\nBASE_NOTE = ${baseNote};\nsong = [${body}];\nsongTick = 0;\nsongIndex = 0;\nplaying = true;`;
+  const container = document.getElementById('blocksContainer');
+  container.innerHTML = '';
+  chunks.forEach((chunk, idx)=>{
+    const card = document.createElement('div');
+    card.style.marginBottom = '14px';
+    const label = document.createElement('div');
+    label.className = 'note-inline';
+    label.style.marginBottom = '6px';
+    label.innerHTML = `<b style="color:var(--accent)">パート ${idx+1} / ${chunks.length}</b>　${chunk.count}ノート・${chunk.code.length}文字`;
+    const ta = document.createElement('textarea');
+    ta.id = `chunk_${idx}`;
+    ta.rows = 5;
+    ta.spellcheck = false;
+    ta.value = chunk.code;
+    const row = document.createElement('div');
+    row.className = 'row';
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = 'コピー';
+    copyBtn.onclick = ()=>copyText(`chunk_${idx}`);
+    const dlBtn = document.createElement('button');
+    dlBtn.className = 'ghost';
+    dlBtn.textContent = 'ダウンロード';
+    dlBtn.onclick = ()=>downloadText(`chunk_${idx}`, `bloxd_part_${idx+1}_of_${chunks.length}.js`);
+    row.appendChild(copyBtn); row.appendChild(dlBtn);
+    card.appendChild(label); card.appendChild(ta); card.appendChild(row);
+    container.appendChild(card);
+  });
+  document.getElementById('dlAllBtn').disabled = chunks.length === 0;
 
-  document.getElementById('startCode').value = code;
-  document.getElementById('copyStartBtn').disabled = false;
-  document.getElementById('dlStartBtn').disabled = false;
-
+  const totalChars = chunks.reduce((s,c)=>s+c.code.length, 0);
   const dur = notes.length ? (notes[notes.length-1].tick / tps) : 0;
   document.getElementById('statNotes').textContent = lastResult.notes.length + (lastResult.notes.length>maxNotes ? ` (出力は${maxNotes}まで)` : '');
   document.getElementById('statDur').textContent = dur.toFixed(1) + '秒';
-  document.getElementById('statChars').textContent = code.length + (code.length>20000 ? ' 文字 (かなり大きいので注意)' : ' 文字');
+  document.getElementById('statChars').textContent = `合計${totalChars}文字 / ${chunks.length}パート`;
   document.getElementById('statsBox').style.display = 'flex';
+}
+
+function downloadAllParts(){
+  if (!lastChunks.length) return;
+  const text = lastChunks.map((c,i)=>`----- part ${i+1}/${lastChunks.length} (${c.count} notes, paste into its own Code Block) -----\n${c.code}`).join('\n\n');
+  const blob = new Blob([text], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'bloxd_song_all_parts.txt';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
 }
 
 const midiInput = document.getElementById('midiInput');
@@ -485,10 +563,10 @@ function handleFile(file){
       renderOutput();
     } catch(err){
       lastResult = null;
+      lastChunks = [];
       document.getElementById('statsBox').style.display = 'none';
-      document.getElementById('startCode').value = '';
-      document.getElementById('copyStartBtn').disabled = true;
-      document.getElementById('dlStartBtn').disabled = true;
+      document.getElementById('blocksContainer').innerHTML = '';
+      document.getElementById('dlAllBtn').disabled = true;
       const box = document.getElementById('errBox');
       box.textContent = '変換エラー: ' + err.message;
       box.style.display = 'block';
@@ -505,7 +583,7 @@ dropzone.addEventListener('drop', e=>{
   if (f) handleFile(f);
 });
 
-['baseSound','baseNote','tps','maxNotes'].forEach(id=>{
+['baseSound','baseNote','tps','maxNotes','maxChars'].forEach(id=>{
   document.getElementById(id).addEventListener('input', ()=>{ if(lastResult) renderOutput(); });
 });
 </script>
