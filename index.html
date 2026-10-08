@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bloxd MIDI コンバータ</title>
+<title>Bloxd 音声・動画・MIDI コンバータ</title>
 <style>
   :root{
     --bg:#0e1512;
@@ -51,7 +51,7 @@
     font-weight:650;
   }
   h1 span{color:var(--accent);}
-  header p{color:var(--dim);max-width:60ch;margin:0;font-size:15px;}
+  header p{color:var(--dim);max-width:62ch;margin:0;font-size:15px;}
 
   .step{
     border:1px solid var(--line);
@@ -106,6 +106,7 @@
   button.ghost:hover{background:var(--line);color:var(--text);}
   button:disabled{opacity:.4;cursor:not-allowed;}
   button:disabled:hover{background:transparent;color:var(--accent);}
+  button.ghost:disabled:hover{background:transparent;color:var(--dim);}
 
   .dropzone{
     border:1px dashed var(--line);
@@ -115,17 +116,22 @@
     color:var(--dim);
     font-size:13.5px;
     cursor:pointer;
+    display:block;
     transition:border-color .12s ease, background .12s ease;
   }
   .dropzone:hover, .dropzone.drag{border-color:var(--accent-dim);background:rgba(94,230,160,.04);}
   .dropzone strong{color:var(--text);}
   input[type=file]{display:none;}
 
+  .subhead{
+    font-family:var(--mono);font-size:12px;color:var(--accent-dim);
+    margin:22px 0 0;padding-top:14px;border-top:1px solid var(--line);
+  }
   .opts{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
     gap:14px;
-    margin:16px 0 4px;
+    margin:12px 0 4px;
   }
   .field label{
     display:block;font-size:12px;color:var(--dim);margin-bottom:5px;
@@ -135,11 +141,13 @@
     border:1px solid var(--line);border-radius:4px;
     padding:8px 10px;font-family:var(--mono);font-size:13px;
   }
+  .field input[type=range]{width:100%;accent-color:var(--accent);}
   .field select:focus, .field input:focus{outline:none;border-color:var(--accent-dim);}
   .field.check{display:flex;align-items:center;gap:8px;margin-top:6px;}
   .field.check input{width:auto;}
   .field.check label{margin:0;color:var(--text);font-size:13px;}
   .autobtn{font-size:11px;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;background:none;border:none;padding:0;margin-left:8px;}
+  .autobtn:hover{background:none;color:var(--text);}
 
   .stats{
     display:flex;gap:22px;flex-wrap:wrap;
@@ -149,7 +157,13 @@
   .stats b{color:var(--accent);font-weight:600;}
   .note-inline{font-size:12px;color:var(--dim);margin-top:4px;}
   .warn{color:var(--warn);}
-  .err{color:#f28b82;font-size:13px;margin-top:10px;}
+  .err{color:#f28b82;font-size:13px;margin-top:10px;white-space:pre-wrap;}
+  .progress{
+    font-family:var(--mono);font-size:12.5px;color:var(--accent);
+    margin-top:12px;
+  }
+  .bar{height:4px;background:var(--line);border-radius:2px;margin-top:6px;overflow:hidden;}
+  .bar > div{height:100%;width:0;background:var(--accent);transition:width .1s linear;}
   .toast{
     position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
     background:var(--accent);color:#062015;font-weight:600;font-size:13px;
@@ -166,8 +180,8 @@
 
   <header>
     <div class="tag"><i></i>WORLD CODE 生成ツール</div>
-    <h1>MIDI を Bloxd の<span>演奏</span>に変換する</h1>
-    <p>MIDIファイルをアップロードすると、Bloxd.io の World Code / Code Block 用スクリプトに自動変換します。効果音の再生速度(rate)を音程としてずらすことで、note系サウンドを楽器代わりに鳴らします。</p>
+    <h1>音声・動画・MIDI を Bloxd の<span>演奏</span>に変換する</h1>
+    <p>音声ファイル（mp3 / wav など）や動画ファイル（mp4 / webm など）をアップロードすると、ブラウザ内で音程を解析して MIDI に変換し、そのまま Bloxd.io の World Code / Code Block 用スクリプトにします。MIDIファイルを直接読み込むこともできます。効果音の再生速度(rate)を音程としてずらすことで、note系サウンドを楽器代わりに鳴らします。</p>
   </header>
 
   <div class="step">
@@ -183,15 +197,66 @@
   </div>
 
   <div class="step">
-    <div class="step-head"><div class="step-num">02</div><h2>MIDIをアップロード</h2></div>
+    <div class="step-head"><div class="step-num">02</div><h2>音声・動画・MIDIをアップロード</h2></div>
     <div class="step-body">
-      <p class="desc">.mid / .midi ファイルを選ぶと自動的に変換されます。演奏に使う効果音や基準の音の高さはあとから調整できます。</p>
+      <p class="desc">音声・動画ファイルを選ぶと、音程を解析して MIDI に変換し、自動的に Bloxd 用コードまで作ります。.mid / .midi を選んだ場合は解析せずそのまま変換します。ファイルはあなたのブラウザの中だけで処理され、外部には送信されません。</p>
       <label class="dropzone" id="dropzone" for="midiInput">
-        <div><strong>クリックしてMIDIファイルを選択</strong>、またはここにドラッグ＆ドロップ</div>
+        <div><strong>クリックしてファイルを選択</strong>、またはここにドラッグ＆ドロップ</div>
+        <div style="margin-top:4px;font-size:12px;">mp3 / wav / ogg / m4a / flac / mp4 / webm / mov / mid / midi</div>
         <div id="fileName" style="margin-top:8px;font-family:var(--mono);color:var(--accent);"></div>
       </label>
-      <input type="file" id="midiInput" accept=".mid,.midi,audio/midi">
+      <input type="file" id="midiInput" accept=".mid,.midi,.mp3,.wav,.ogg,.oga,.m4a,.aac,.flac,.opus,.mp4,.webm,.mov,.mkv,audio/*,video/*">
 
+      <div id="progressBox" class="progress" style="display:none;">
+        <div id="progressText"></div>
+        <div class="bar"><div id="progressBar"></div></div>
+      </div>
+
+      <div class="subhead">// 音声・動画の解析設定（MIDIファイルを読み込む場合は無関係です）</div>
+      <div class="opts">
+        <div class="field">
+          <label>同時に拾う音の数（メロディだけなら1〜2）</label>
+          <select id="aPoly">
+            <option value="1">1（単音・メロディ）</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>感度（<span id="aSensVal">5</span>）　高いほど小さい音も拾う</label>
+          <input type="range" id="aSens" min="1" max="10" value="5" oninput="document.getElementById('aSensVal').textContent=this.value">
+        </div>
+        <div class="field">
+          <label>最低音（MIDIノート番号）</label>
+          <input type="number" id="aLow" value="36" min="24" max="100">
+        </div>
+        <div class="field">
+          <label>最高音（MIDIノート番号）</label>
+          <input type="number" id="aHigh" value="96" min="30" max="108">
+        </div>
+        <div class="field">
+          <label>最短ノート長（ミリ秒）　短いノイズを除去</label>
+          <input type="number" id="aMinMs" value="90" min="20" max="1000">
+        </div>
+        <div class="field">
+          <label>解析を始める位置（秒）</label>
+          <input type="number" id="aStart" value="0" min="0" step="1">
+        </div>
+        <div class="field">
+          <label>解析する長さ（秒、0で最後まで）</label>
+          <input type="number" id="aDur" value="0" min="0" step="1">
+        </div>
+      </div>
+      <div class="row">
+        <button id="reanalyzeBtn" onclick="reanalyze()" disabled>この設定で再解析</button>
+        <button class="ghost" id="dlMidiBtn" onclick="downloadMidi()" disabled>解析結果をMIDIでダウンロード</button>
+      </div>
+      <p class="note-inline">長い動画は、解析する範囲を区切ると速く安定します。ドラムや歌声が混ざった曲は、音程の取りこぼしや誤検出が出やすくなります（同時に拾う音の数を減らし、感度を調整してください）。</p>
+
+      <div class="subhead">// 変換設定（MIDI → Bloxd）</div>
       <div class="opts">
         <div class="field">
           <label>楽器（効果音）</label>
@@ -253,7 +318,7 @@
   </div>
 
   <footer>
-    api.playSound / api.broadcastSound の rate引数で音程を、World Codeのtickコールバック(20回/秒)で再生タイミングを制御しています。仕様はコミュニティのcode-api docsに基づくため、Bloxdのアップデートで挙動が変わる可能性があります。
+    api.playSound / api.broadcastSound の rate引数で音程を、World Codeのtickコールバック(20回/秒)で再生タイミングを制御しています。仕様はコミュニティのcode-api docsに基づくため、Bloxdのアップデートで挙動が変わる可能性があります。音声・動画の音程解析はFFTによる簡易的な方式で、市販の採譜ソフトほどの精度はありません。
   </footer>
 </div>
 
@@ -329,6 +394,7 @@ function downloadText(id, filename){
   URL.revokeObjectURL(url);
 }
 
+// ===PURE-START===
 class ByteReader{
   constructor(buf){ this.view = new DataView(buf); this.pos = 0; this.len = buf.byteLength; }
   u8(){ return this.view.getUint8(this.pos++); }
@@ -403,6 +469,219 @@ function parseMidi(arrayBuffer){
   }
   return {ticksPerQuarter, tracks};
 }
+
+/* ---------- 音声 → ノート解析（FFTベース） ---------- */
+const AUDIO_SR = 22050;   // 解析用サンプルレート
+const AUDIO_WIN = 4096;   // 窓の長さ
+const AUDIO_NFFT = 8192;  // FFTサイズ（ゼロ埋めで周波数分解能を補間）
+const AUDIO_HOP = 1024;   // フレーム間隔（約46ms、Bloxdの1tick=50msに近い）
+
+function makeFFT(n){
+  const levels = Math.round(Math.log2(n));
+  const rev = new Uint32Array(n);
+  for (let i = 0; i < n; i++){
+    let x = i, r = 0;
+    for (let j = 0; j < levels; j++){ r = (r << 1) | (x & 1); x >>= 1; }
+    rev[i] = r;
+  }
+  const cosT = new Float64Array(n / 2), sinT = new Float64Array(n / 2);
+  for (let i = 0; i < n / 2; i++){
+    cosT[i] = Math.cos(2 * Math.PI * i / n);
+    sinT[i] = Math.sin(2 * Math.PI * i / n);
+  }
+  return function(re, im){
+    for (let i = 0; i < n; i++){
+      const j = rev[i];
+      if (j > i){
+        let t = re[i]; re[i] = re[j]; re[j] = t;
+        t = im[i]; im[i] = im[j]; im[j] = t;
+      }
+    }
+    for (let size = 2; size <= n; size <<= 1){
+      const half = size >> 1, step = n / size;
+      for (let i = 0; i < n; i += size){
+        for (let j = i, k = 0; j < i + half; j++, k += step){
+          const l = j + half;
+          const tr = re[l] * cosT[k] + im[l] * sinT[k];
+          const ti = -re[l] * sinT[k] + im[l] * cosT[k];
+          re[l] = re[j] - tr; im[l] = im[j] - ti;
+          re[j] += tr; im[j] += ti;
+        }
+      }
+    }
+  };
+}
+
+const tick0 = () => new Promise(r => setTimeout(r, 0));
+
+// pcm: Float32Array(22050Hz, mono)
+// o: {startSec, durSec, lowNote, highNote, poly, sensitivity(1-10), minMs}
+// 戻り値: [{note, start(秒), end(秒), vel}]
+async function analyzeAudio(pcm, o, onProgress){
+  const SR = AUDIO_SR, WIN = AUDIO_WIN, NFFT = AUDIO_NFFT, HOP = AUDIO_HOP;
+  const s0 = Math.max(0, Math.floor(o.startSec * SR));
+  const s1 = o.durSec > 0 ? Math.min(pcm.length, s0 + Math.floor(o.durSec * SR)) : pcm.length;
+  const low = o.lowNote, nN = o.highNote - o.lowNote + 1;
+  const frames = Math.floor((s1 - s0 - WIN) / HOP) + 1;
+  if (frames < 3 || nN < 3) return [];
+
+  const fft = makeFFT(NFFT);
+  const win = new Float64Array(WIN);
+  for (let i = 0; i < WIN; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (WIN - 1));
+
+  // 各ノートに対応するFFTビン範囲（±0.5半音）
+  const SEMI = Math.pow(2, 1 / 24);
+  const lo = new Int32Array(nN), hi = new Int32Array(nN);
+  const maxBin = NFFT / 2 - 1;
+  for (let k = 0; k < nN; k++){
+    const f = 440 * Math.pow(2, (low + k - 69) / 12);
+    const b = f * NFFT / SR;
+    lo[k] = Math.min(maxBin, Math.max(1, Math.round(b / SEMI)));
+    hi[k] = Math.min(maxBin, Math.max(lo[k], Math.round(b * SEMI)));
+  }
+
+  // パス1: 各フレーム・各ノートのエネルギー
+  const E = new Float32Array(frames * nN);
+  const re = new Float64Array(NFFT), im = new Float64Array(NFFT);
+  let gMax = 0;
+  for (let f = 0; f < frames; f++){
+    const off = s0 + f * HOP;
+    for (let i = 0; i < WIN; i++) re[i] = pcm[off + i] * win[i];
+    re.fill(0, WIN); im.fill(0);
+    fft(re, im);
+    const base = f * nN;
+    for (let k = 0; k < nN; k++){
+      let m = 0;
+      for (let b = lo[k]; b <= hi[k]; b++){
+        const p = re[b] * re[b] + im[b] * im[b];
+        if (p > m) m = p;
+      }
+      const v = Math.sqrt(m);
+      E[base + k] = v;
+      if (v > gMax) gMax = v;
+    }
+    if (f % 40 === 0){
+      if (onProgress) onProgress(f / frames * 0.8);
+      await tick0();
+    }
+  }
+  if (gMax <= 0) return [];
+
+  // パス2: フレームごとに倍音を差し引きながら強い順にノートを選ぶ
+  const sens = o.sensitivity;
+  const rel = 0.5 - (sens - 1) * (0.42 / 9);
+  const floor = gMax * (0.08 - (sens - 1) * 0.007);
+  const HARM = [[12, 0.55], [19, 0.35], [24, 0.25], [28, 0.15]];
+  const det = new Float32Array(frames * nN);
+  const w = new Float32Array(nN);
+  for (let f = 0; f < frames; f++){
+    const base = f * nN;
+    let fm = 0;
+    for (let k = 0; k < nN; k++){ const v = E[base + k]; w[k] = v; if (v > fm) fm = v; }
+    if (fm < floor) continue;
+    const thr = Math.max(fm * rel, floor);
+    let picked = 0, guard = 0;
+    while (picked < o.poly && guard++ < o.poly * 8){
+      let bk = -1, bv = 0;
+      for (let k = 0; k < nN; k++){ if (w[k] > bv){ bv = w[k]; bk = k; } }
+      if (bk < 0 || bv < thr) break;
+      const e = E[base + bk];
+      const isPeak = (bk === 0 || e >= E[base + bk - 1]) && (bk === nN - 1 || e >= E[base + bk + 1]);
+      w[bk] = 0;
+      if (bk > 0) w[bk - 1] = 0;
+      if (bk < nN - 1) w[bk + 1] = 0;
+      if (!isPeak) continue;
+      det[base + bk] = e;
+      picked++;
+      for (const [offs, fac] of HARM){
+        const idx = bk + offs;
+        if (idx < nN){
+          w[idx] = Math.max(0, w[idx] - e * fac);
+          if (idx > 0) w[idx - 1] = Math.max(0, w[idx - 1] - e * fac * 0.5);
+          if (idx < nN - 1) w[idx + 1] = Math.max(0, w[idx + 1] - e * fac * 0.5);
+        }
+      }
+    }
+    if (f % 200 === 0){
+      if (onProgress) onProgress(0.8 + f / frames * 0.1);
+      await tick0();
+    }
+  }
+
+  // パス3: ノートごとに連続区間へまとめ、短いものを除去、再打鍵で分割
+  const minF = Math.max(1, Math.ceil(o.minMs / 1000 / (HOP / SR)));
+  const timeOf = fr => (fr * HOP + WIN / 2) / SR;
+  const out = [];
+  for (let k = 0; k < nN; k++){
+    for (let f = 1; f < frames - 1; f++){
+      if (det[f * nN + k] === 0 && det[(f - 1) * nN + k] > 0 && det[(f + 1) * nN + k] > 0){
+        det[f * nN + k] = (det[(f - 1) * nN + k] + det[(f + 1) * nN + k]) / 2;
+      }
+    }
+    const pushSeg = (s, e, strength) => {
+      const vel = Math.max(1, Math.min(127, Math.round(35 + 92 * Math.sqrt(strength / gMax))));
+      out.push({note: low + k, start: timeOf(s), end: timeOf(e), vel});
+    };
+    let f = 0;
+    while (f < frames){
+      if (det[f * nN + k] === 0){ f++; continue; }
+      const s = f;
+      while (f < frames && det[f * nN + k] > 0) f++;
+      const e = f;
+      if (e - s < minF) continue;
+      let segStart = s, segMax = det[s * nN + k];
+      for (let g = s + 1; g < e; g++){
+        const cur = det[g * nN + k], prev = det[(g - 1) * nN + k];
+        if (cur > 1.7 * prev && g - segStart >= Math.max(minF, 5)){
+          pushSeg(segStart, g, segMax);
+          segStart = g; segMax = cur;
+        } else if (cur > segMax){
+          segMax = cur;
+        }
+      }
+      pushSeg(segStart, e, segMax);
+    }
+  }
+  out.sort((a, b) => a.start - b.start || a.note - b.note);
+  if (onProgress) onProgress(1);
+  return out;
+}
+
+function varLenBytes(v){
+  const b = [v & 0x7f];
+  v >>= 7;
+  while (v > 0){ b.unshift((v & 0x7f) | 0x80); v >>= 7; }
+  return b;
+}
+
+// ノート配列 → 標準MIDIファイル(フォーマット0, 480分音符, テンポ120BPM)
+function notesToMidi(notes){
+  const TPS = 960; // 480 ticks/quarter × 2 quarter/sec
+  const ev = [];
+  for (const n of notes){
+    const on = Math.round(n.start * TPS);
+    const off = Math.max(on + 1, Math.round(n.end * TPS));
+    ev.push({t: on, o: 1, d: [0x90, n.note, n.vel]});
+    ev.push({t: off, o: 0, d: [0x80, n.note, 0]});
+  }
+  ev.sort((a, b) => a.t - b.t || a.o - b.o);
+  const body = [0x00, 0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20];
+  let last = 0;
+  for (const e of ev){
+    for (const x of varLenBytes(e.t - last)) body.push(x);
+    body.push(e.d[0], e.d[1], e.d[2]);
+    last = e.t;
+  }
+  body.push(0x00, 0xFF, 0x2F, 0x00);
+  const len = body.length;
+  const head = [0x4D,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, 0x01,0xE0,
+                0x4D,0x54,0x72,0x6B, (len>>>24)&255, (len>>>16)&255, (len>>>8)&255, len&255];
+  const bytes = new Uint8Array(head.length + len);
+  bytes.set(head, 0);
+  bytes.set(body, head.length);
+  return bytes;
+}
+// ===PURE-END===
 
 function ticksToSeconds(tick, tempoChanges, ticksPerQuarter){
   let seconds = 0, lastTick = 0, lastTempo = 500000;
@@ -550,26 +829,169 @@ function downloadAllParts(){
   URL.revokeObjectURL(url);
 }
 
+/* ---------- UI: エラー・進捗・状態リセット ---------- */
+function showError(msg){
+  const box = document.getElementById('errBox');
+  box.textContent = msg;
+  box.style.display = 'block';
+}
+function resetOutput(){
+  lastResult = null;
+  lastChunks = [];
+  document.getElementById('statsBox').style.display = 'none';
+  document.getElementById('blocksContainer').innerHTML = '';
+  document.getElementById('dlAllBtn').disabled = true;
+}
+function setProgress(text, frac){
+  const box = document.getElementById('progressBox');
+  if (text === null){ box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  document.getElementById('progressText').textContent = text;
+  document.getElementById('progressBar').style.width = Math.round((frac || 0) * 100) + '%';
+}
+
+/* ---------- 音声・動画ファイルの読み込み ---------- */
+let lastPcm = null;
+let lastMidiBytes = null;
+let lastBaseName = 'song';
+let busy = false;
+
+function setBusy(b){
+  busy = b;
+  document.getElementById('reanalyzeBtn').disabled = b || !lastPcm;
+}
+
+async function decodeToMono(file){
+  const buf = await file.arrayBuffer();
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) throw new Error('このブラウザはWeb Audioに対応していません。ChromeかEdgeでお試しください。');
+  const ctx = new AC();
+  let decoded;
+  try{
+    decoded = await ctx.decodeAudioData(buf);
+  } finally {
+    if (ctx.close) ctx.close();
+  }
+  const len = Math.max(1, Math.ceil(decoded.duration * AUDIO_SR));
+  const off = new OfflineAudioContext(1, len, AUDIO_SR);
+  const src = off.createBufferSource();
+  src.buffer = decoded;
+  src.connect(off.destination);
+  src.start();
+  const rendered = await off.startRendering();
+  return rendered.getChannelData(0);
+}
+
+function getAudioOpts(){
+  const num = (id, d) => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? d : v; };
+  let lowNote = Math.round(num('aLow', 36));
+  let highNote = Math.round(num('aHigh', 96));
+  if (highNote < lowNote){ const t = lowNote; lowNote = highNote; highNote = t; }
+  return {
+    startSec: Math.max(0, num('aStart', 0)),
+    durSec: Math.max(0, num('aDur', 0)),
+    lowNote, highNote,
+    poly: Math.max(1, Math.min(6, parseInt(document.getElementById('aPoly').value) || 3)),
+    sensitivity: Math.max(1, Math.min(10, num('aSens', 5))),
+    minMs: Math.max(20, num('aMinMs', 90))
+  };
+}
+
+async function runAnalysis(){
+  const opts = getAudioOpts();
+  setProgress('音程を解析中…', 0);
+  const notes = await analyzeAudio(lastPcm, opts, p => setProgress('音程を解析中… ' + Math.round(p * 100) + '%', p));
+  if (!notes.length){
+    lastMidiBytes = null;
+    document.getElementById('dlMidiBtn').disabled = true;
+    throw new Error('音程を検出できませんでした。\n感度を上げる、最低音・最高音の範囲を広げる、解析範囲を見直すなどをお試しください。');
+  }
+  setProgress('MIDIを生成中…', 0.95);
+  lastMidiBytes = notesToMidi(notes);
+  document.getElementById('dlMidiBtn').disabled = false;
+  convert(lastMidiBytes.buffer);
+  renderOutput();
+  setProgress(`解析完了：${notes.length}ノートを検出しました`, 1);
+}
+
+async function handleAudioFile(file){
+  setBusy(true);
+  document.getElementById('errBox').style.display = 'none';
+  resetOutput();
+  lastPcm = null; lastMidiBytes = null;
+  document.getElementById('dlMidiBtn').disabled = true;
+  try{
+    setProgress('音声を読み込み中…（動画や長い曲は少し時間がかかります）', 0.02);
+    await tick0();
+    try{
+      lastPcm = await decodeToMono(file);
+    } catch(e){
+      throw new Error('このファイルの音声を読み込めませんでした。\n対応していない形式やコーデックの可能性があります。mp3 / wav / m4a などに変換してからお試しください。\n（' + (e && e.message ? e.message : e) + '）');
+    }
+    await runAnalysis();
+  } catch(err){
+    resetOutput();
+    setProgress(null);
+    showError('変換エラー: ' + err.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function reanalyze(){
+  if (!lastPcm || busy) return;
+  setBusy(true);
+  document.getElementById('errBox').style.display = 'none';
+  try{
+    await runAnalysis();
+  } catch(err){
+    resetOutput();
+    setProgress(null);
+    showError('変換エラー: ' + err.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function downloadMidi(){
+  if (!lastMidiBytes) return;
+  const blob = new Blob([lastMidiBytes], {type:'audio/midi'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = lastBaseName + '.mid';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- ファイル振り分け ---------- */
 const midiInput = document.getElementById('midiInput');
 const dropzone = document.getElementById('dropzone');
+
+function isMidiFile(file){
+  return /\.midi?$/i.test(file.name) || /^audio\/(x-)?midi?$/i.test(file.type);
+}
 
 function handleFile(file){
   if (!file) return;
   document.getElementById('fileName').textContent = file.name;
+  lastBaseName = file.name.replace(/\.[^.]+$/, '') || 'song';
+  if (!isMidiFile(file)){
+    handleAudioFile(file);
+    return;
+  }
+  // MIDIファイルは解析せずそのまま変換
+  lastPcm = null; lastMidiBytes = null;
+  document.getElementById('dlMidiBtn').disabled = true;
+  document.getElementById('reanalyzeBtn').disabled = true;
+  setProgress(null);
   const reader = new FileReader();
   reader.onload = () => {
     try{
       convert(reader.result);
       renderOutput();
     } catch(err){
-      lastResult = null;
-      lastChunks = [];
-      document.getElementById('statsBox').style.display = 'none';
-      document.getElementById('blocksContainer').innerHTML = '';
-      document.getElementById('dlAllBtn').disabled = true;
-      const box = document.getElementById('errBox');
-      box.textContent = '変換エラー: ' + err.message;
-      box.style.display = 'block';
+      resetOutput();
+      showError('変換エラー: ' + err.message);
     }
   };
   reader.readAsArrayBuffer(file);
