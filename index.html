@@ -272,11 +272,11 @@
         </div>
         <div class="field">
           <label>出力する最大ノート数</label>
-          <input type="number" id="maxNotes" value="4000" min="1" max="50000">
+          <input type="number" id="maxNotes" value="20000" min="1" max="100000">
         </div>
         <div class="field">
           <label>1ブロックあたりの最大文字数</label>
-          <input type="number" id="maxChars" value="30000" min="200" max="100000">
+          <input type="number" id="maxChars" value="500000" min="200" max="524288">
         </div>
         <div class="field check">
           <input type="checkbox" id="excludeDrums" checked>
@@ -296,7 +296,7 @@
   <div class="step">
     <div class="step-head"><div class="step-num">03</div><h2>曲データを読み込みブロックに分けて貼る</h2></div>
     <div class="step-body">
-      <p class="desc">1つのCode Blockに貼れる文字数には上限があるため（実測ではおよそ32,000文字あたりが目安）、曲データは自動的に複数ブロックに分割されます。Bloxdのワールドでパートの数だけCode Blockを並べて置き、パート1から順番に1回ずつクリックして曲データを読み込ませてください（あとから曲を変える場合もパート1から貼り直せばOKです）。</p>
+      <p class="desc">1つのCode Blockには最大512KBまで貼れるため、曲データは1ブロックあたり最大約500,000文字で自動的に分割されます（短い曲なら1パートに収まります）。パートが複数ある場合は、Bloxdのワールドでパートの数だけCode Blockを並べて置き、パート1から順番に1回ずつクリックして曲データを読み込ませてください（あとから曲を変える場合もパート1から貼り直せばOKです）。</p>
       <div id="blocksContainer"></div>
       <div class="row">
         <button class="ghost" id="dlAllBtn" onclick="downloadAllParts()" disabled>全パートをまとめて1ファイルでダウンロード</button>
@@ -771,8 +771,8 @@ let lastChunks = [];
 
 function renderOutput(){
   if (!lastResult) return;
-  const maxNotes = parseInt(document.getElementById('maxNotes').value) || 4000;
-  const maxChars = parseInt(document.getElementById('maxChars').value) || 1500;
+  const maxNotes = parseInt(document.getElementById('maxNotes').value) || 20000;
+  const maxChars = parseInt(document.getElementById('maxChars').value) || 500000;
   const baseSound = document.getElementById('baseSound').value;
   const baseNote = parseInt(document.getElementById('baseNote').value) || 60;
   const tps = parseFloat(document.getElementById('tps').value) || 20;
